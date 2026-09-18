@@ -1,0 +1,20 @@
+# Keeps the SHA-pinned actions in workflows/ci.yml current.
+#
+# This file is what makes SHA pinning sustainable rather than a slow decay. A
+# pinned SHA never picks up an upstream fix on its own, so pinning without a
+# bump mechanism just trades a supply-chain risk for a staleness one. Dependabot
+# opens a pull request when a pinned action has a newer release, updating both
+# the SHA and the version comment beside it.
+#
+# Only github-actions is listed. The Lambda functions import boto3 from the
+# runtime and the module has no package manifest, so there is no other
+# ecosystem here for Dependabot to watch.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    open-pull-requests-limit: 5
