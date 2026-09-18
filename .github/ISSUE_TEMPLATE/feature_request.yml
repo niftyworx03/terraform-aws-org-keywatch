@@ -1,0 +1,80 @@
+name: Feature request
+description: Propose a change to what the module detects, reports, or creates.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two constraints shape what gets accepted, so it is worth reading them
+        before writing a long proposal:
+
+        1. **Zero cost at default settings.** New billable behaviour has to be
+           opt-in behind a variable defaulting to off, the way GuardDuty is.
+        2. **Signal over coverage.** Adding event names is easy and usually
+           wrong. A control people stop reading is worse than no control.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: >
+        The situation you are in, not the feature you want. "I cannot tell
+        whether X happened" is more useful than "add a variable for X."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: New variables, resources, or detection logic. Sketch the interface if you have one in mind.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cost
+    attributes:
+      label: Cost impact
+      options:
+        - None — stays inside the always-free tiers
+        - Billable, and I propose it default to off
+        - Billable, and I think it should be on by default (explain below)
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: alert-volume
+    attributes:
+      label: Effect on alert volume
+      options:
+        - None
+        - Reduces alerts or improves precision
+        - Adds alerts for something genuinely rare
+        - Adds alerts that could fire often (explain why that is worth it)
+    validations:
+      required: true
+
+  - type: textarea
+    id: signal
+    attributes:
+      label: Why this is high signal
+      description: >
+        Only needed if you are proposing new detections. Roughly how often does
+        this occur in a normally-operated account, and what would a legitimate
+        occurrence look like? This is the question that decides most proposals.
+
+  - type: textarea
+    id: breaking
+    attributes:
+      label: Would this break existing deployments
+      description: >
+        Changes that force replacement of the trail, the log group, or the SNS
+        topic are breaking even when no variable changes, because consumers lose
+        state and subscriptions they already have.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Including whether this belongs in a consumer's own configuration rather than in the module.

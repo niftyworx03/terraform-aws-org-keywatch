@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Apply from the ORGANIZATION MANAGEMENT ACCOUNT. An organization trail cannot
+# be created anywhere else, and the module's aws_organizations_organization
+# data source fails if you point this at a member account.
+
+# Required. AWS mails a confirmation link here and delivers nothing until you
+# click it.
+alert_email = "you@example.com"
+
+# Where the stack lives. The trail is multi-region either way.
+aws_region = "us-east-1"
+
+tags = {
+  managed-by = "terraform"
+  module     = "org-keywatch"
+}
+
+# These three are all this example root exposes, because they are the only
+# values that genuinely vary per deployment. Every other setting — narrowing to
+# specific access keys, the GuardDuty toggles, the heartbeat schedule and
+# retention periods — is set on the module block in main.tf, where the reasoning
+# for each default is written next to it.
+#
+# Adding a variable here without also declaring it in variables.tf and passing
+# it through main.tf will fail with "undeclared variable".

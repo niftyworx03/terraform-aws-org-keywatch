@@ -1,0 +1,31 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# State and variable files hold account IDs, organization IDs, and the alert
+# address. None of it belongs in a public repository.
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Lambda build artifacts
+.build/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editors and OS
+.DS_Store
+*.swp
+.idea/
+.vscode/

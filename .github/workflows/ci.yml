@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Nothing here needs write access, and nothing here needs AWS
+# credentials: the Terraform checks stop at validate, and the Lambda tests stub
+# boto3.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned because `terraform fmt` output drifts between releases. An unpinned
+  # version turns an upstream release into a failing build on untouched code.
+  TERRAFORM_VERSION: "1.16.3"
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+  validate:
+    name: Validate (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The module root and the example are separate Terraform roots and are
+        # validated independently. The module declares no provider block, so a
+        # green module root does not imply the example still wires up.
+        dir:
+          - "."
+          - "examples/complete"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: terraform init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -backend=false -input=false
+
+      - name: terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+
+  tflint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.64.0
+
+      - name: Cache tflint plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.tflint.d/plugins
+          key: tflint-${{ hashFiles('.tflint.hcl') }}
+
+      - name: tflint
+        run: |
+          tflint --init --recursive
+          tflint --recursive --format compact
+
+  test:
+    name: Lambda tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Matches the runtime the functions actually run on. Testing on a
+      # different interpreter than production is the gap this closes.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Compile check
+        run: python -m compileall -q lambda tests
+
+      - name: Smoke tests
+        run: python tests/smoke_test.py
+
+  # Fails the build if any resource in the module hardcodes an account ID, an
+  # organization ID, or an email address. Those belong in a caller's tfvars, and
+  # a leaked one in a public module is both a privacy problem and a bug.
+  no-hardcoded-identifiers:
+    name: No hardcoded identifiers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Scan
+        run: |
+          set -o pipefail
+          status=0
+
+          # 12-digit account IDs. The test fixtures use repdigit placeholders,
+          # which are the only values allowed through.
+          if grep -rnoE '\b[0-9]{12}\b' --include='*.tf' --include='*.py' --include='*.md' . \
+              | grep -vE '(111111111111|222222222222|999999999999)'; then
+            echo "::error::hardcoded AWS account ID"
+            status=1
+          fi
+
+          # Organization IDs.
+          if grep -rnoE '\bo-[a-z0-9]{10,32}\b' --include='*.tf' --include='*.py' . \
+              | grep -v 'o-xxxxxxxxxx'; then
+            echo "::error::hardcoded AWS organization ID"
+            status=1
+          fi
+
+          # Real-looking access key IDs.
+          if grep -rnoE '\b(AKIA|ASIA)[0-9A-Z]{16}\b' --include='*.tf' --include='*.py' --include='*.md' .; then
+            echo "::error::access key ID committed"
+            status=1
+          fi
+
+          # Email addresses outside the example domains.
+          if grep -rhoE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' \
+              --include='*.tf' --include='*.py' --include='*.md' --include='*.example' . \
+              | grep -vE '@(example\.com|example\.org|users\.noreply\.github\.com|amazonaws\.com)$'; then
+            echo "::error::email address outside the example domains"
+            status=1
+          fi
+
+          [ "$status" -eq 0 ] && echo "clean"
+          exit "$status"

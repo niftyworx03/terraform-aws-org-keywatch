@@ -1,0 +1,53 @@
+# Install with:
+#   pre-commit install
+#
+# These hooks are the same checks CI runs, and nothing here needs AWS
+# credentials, so a local run and a build agree.
+#
+# There is deliberately no terraform_docs hook. The block between the
+# BEGIN_TF_DOCS and END_TF_DOCS markers in README.md is hand-written, and its
+# defaults column summarises values rather than dumping them ("37 names, see
+# variables.tf"). terraform-docs would regenerate that and lose the summaries,
+# and since CI does not run it, the only person it would surprise is a
+# contributor who installed these hooks. Keep the table in step by hand when
+# variables.tf or outputs.tf changes.
+
+repos:
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.109.1
+    hooks:
+      - id: terraform_fmt
+
+      - id: terraform_validate
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+          - --tf-init-args=-backend=false
+
+      - id: terraform_tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+      - id: forbid-submodules
+
+      # Last line of defence for anyone who reaches for `git add -f`. State and
+      # tfvars files carry account IDs, organization IDs, and the alert address,
+      # and .gitignore is the only thing normally stopping them.
+      - id: detect-private-key
+      - id: check-added-large-files
+
+  - repo: local
+    hooks:
+      - id: smoke-test
+        name: Lambda smoke tests
+        entry: python3 tests/smoke_test.py
+        language: system
+        files: ^(lambda|tests)/.*\.py$
+        pass_filenames: false

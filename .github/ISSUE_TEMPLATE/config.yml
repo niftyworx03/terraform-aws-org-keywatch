@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/niftyworx03/terraform-aws-org-keywatch/security/advisories/new
+    about: Private disclosure. Do not open a public issue for a security problem.
+  - name: Ask a question or propose a design
+    url: https://github.com/niftyworx03/terraform-aws-org-keywatch/discussions
+    about: Best place for "should this module do X" before writing any code.
+  - name: AWS service problem
+    url: https://aws.amazon.com/contact-us/
+    about: CloudTrail not delivering, GuardDuty not enabling, and similar service issues are AWS support questions rather than module bugs.
